@@ -1,0 +1,74 @@
+---
+title: "Election Topic Network - Czech Presidential Election 2018"
+author: "Matous Pilnacek"
+date: "24 července 2018"
+output: 
+  html_document: 
+    toc: yes
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## R Markdown
+
+```{r libraries}
+library(foreign)
+library(readxl)
+library(plyr)
+library(igraph)
+```
+
+```{r load data}
+NS1802 = as.data.frame(read.spss("./../data/NS_1802_DataFile-FINAL.sav", use.value.labels = F, reencode = "utf8"))
+
+topics = read_excel("./../data/temata_2kolo.xlsx", sheet = "temata")
+```
+
+
+```{r recode}
+NS1802$topic1 = NS1802$PS.23aa
+NS1802[NS1802$topic1 %in% c(98,99,0,96,97), "topic1"] = NA
+NS1802$topic2 = NS1802$PS.23ab
+NS1802[NS1802$topic2 %in% c(98,99,0,96,97), "topic2"] = NA
+
+NS1802$topic1 = mapvalues(NS1802$topic1, topics$val, topics$label)
+NS1802$topic2 = mapvalues(NS1802$topic2, topics$val, topics$label)
+```
+
+
+```{r ties}
+ties = data.frame ( table ( NS1802$topic1, NS1802$topic2 ) )
+ties = ties[ties$Freq > 0,]
+names(ties)[3] = "weight"
+head(ties)
+```
+
+```{r nodes}
+nodes = data.frame ( table ( c(NS1802$topic1, NS1802$topic2 )) )
+head(nodes)
+```
+
+```{r graph}
+g = graph_from_data_frame(ties, directed = FALSE, vertices = nodes)
+g = simplify(g, edge.attr.comb = list("sum"))
+plot(g, vertex.size = log(V(g)$Freq)*4,edge.width = E(g)$weight)
+```
+
+```{r closeness}
+closeness = data.frame(closeness(g, weights = 1/E(g)$weight))
+closeness = cbind(rownames(closeness),closeness)
+
+closeness = merge(nodes, closeness, by.x = "Var1", by.y = "rownames(closeness)")
+names(closeness) = c("label", "size", "closeness")
+```
+
+
+```{r closeness_plot}
+library(ggplot2)
+
+ggplot(closeness, aes(x=size, y=closeness)) +geom_text(label=closeness$label)+
+  stat_smooth(method = "lm", formula = y ~ I(x^2), size = 1)+ theme_bw() + 
+  theme(panel.border = element_blank(), panel.grid.major = element_blank(),                                    panel.grid.minor = element_blank(), axis.line = element_line(colour = "black"))
+```
