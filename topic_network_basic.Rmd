@@ -1,9 +1,10 @@
 ---
 title: "Election Topic Network - Czech Presidential Election 2018"
 author: "Matous Pilnacek"
-date: "24 července 2018"
-output: 
-  html_document: 
+date: "24 .7. 2018"
+output:
+  pdf_document:
+    fig_width: 8
     toc: yes
 ---
 
@@ -11,17 +12,26 @@ output:
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
-## R Markdown
+# Úvod
 
-```{r libraries}
+# Teorie
+
+#Data
+
+#Analyza
+
+```{r libraries, message=FALSE, warning=FALSE, paged.print=FALSE}
 library(foreign)
 library(readxl)
 library(plyr)
 library(igraph)
+library(knitr)
+library(ggplot2)
 ```
 
-```{r load data}
-NS1802 = as.data.frame(read.spss("./../data/NS_1802_DataFile-FINAL.sav", use.value.labels = F, reencode = "utf8"))
+```{r load data, message=FALSE, warning=FALSE, paged.print=FALSE}
+NS1802 = as.data.frame(read.spss("./../data/NS_1802_DataFile-FINAL.sav",
+                                 use.value.labels = F, reencode = "utf8"))
 
 topics = read_excel("./../data/temata_2kolo.xlsx", sheet = "temata")
 ```
@@ -33,21 +43,22 @@ NS1802[NS1802$topic1 %in% c(98,99,0,96,97), "topic1"] = NA
 NS1802$topic2 = NS1802$PS.23ab
 NS1802[NS1802$topic2 %in% c(98,99,0,96,97), "topic2"] = NA
 
+# NS1802$vote = mapvalues(NS1802$PV.149B, c(96,99,0,9,1),c(NA,NA,NA,"Zeman", "Drahoš"))
 NS1802$topic1 = mapvalues(NS1802$topic1, topics$val, topics$label)
 NS1802$topic2 = mapvalues(NS1802$topic2, topics$val, topics$label)
 ```
 
 
 ```{r ties}
-ties = data.frame ( table ( NS1802$topic1, NS1802$topic2 ) )
+ties = data.frame ( table ( NS1802$topic1, NS1802$topic2) )
 ties = ties[ties$Freq > 0,]
 names(ties)[3] = "weight"
-head(ties)
+kable(head(ties))
 ```
 
 ```{r nodes}
 nodes = data.frame ( table ( c(NS1802$topic1, NS1802$topic2 )) )
-head(nodes)
+kable(head(nodes))
 ```
 
 ```{r graph}
@@ -64,11 +75,66 @@ closeness = merge(nodes, closeness, by.x = "Var1", by.y = "rownames(closeness)")
 names(closeness) = c("label", "size", "closeness")
 ```
 
+Vztah mezi dvěma tématy vzniká díky tomu, že jsou 
+** 1) pro danou osobu obě významná
+** 2) je mezi nimi v paměti asociační vazba
 
 ```{r closeness_plot}
-library(ggplot2)
-
 ggplot(closeness, aes(x=size, y=closeness)) +geom_text(label=closeness$label)+
-  stat_smooth(method = "lm", formula = y ~ I(x^2), size = 1)+ theme_bw() + 
-  theme(panel.border = element_blank(), panel.grid.major = element_blank(),                                    panel.grid.minor = element_blank(), axis.line = element_line(colour = "black"))
+  stat_smooth(method = "lm", formula = y ~ I(log(x)), size = 1)+ theme_bw() + 
+  theme(panel.border = element_blank(), panel.grid.major = element_blank(),                            panel.grid.minor = element_blank(), axis.line = element_line(colour = "black"))
 ```
+
+Takto agregovaná síť je problematická, protože agreguje dohromady všechny respondenty, kteří mohou mít ale síť postojů výrazně odlišnou. Je proto vhodné síť rozdělit mezi více skupin. V našem případě na voliče Zemana a Drahoše
+
+## Voliči Miloše Zemana
+```{r zeman network}
+
+zeman = NS1802[NS1802$PV.149B %in% 9,]
+ties = data.frame ( table ( zeman$topic1, zeman$topic2) )
+ties = ties[ties$Freq > 0,]
+names(ties)[3] = "weight"
+
+nodes = data.frame ( table ( c(zeman$topic1, zeman$topic2 )) )
+
+g = graph_from_data_frame(ties, directed = FALSE, vertices = nodes)
+g = simplify(g, edge.attr.comb = list("sum"))
+plot(g, vertex.size = log(V(g)$Freq)*4,edge.width = E(g)$weight)
+
+closeness = data.frame(closeness(g, weights = 1/E(g)$weight))
+closeness = cbind(rownames(closeness),closeness)
+
+closeness = merge(nodes, closeness, by.x = "Var1", by.y = "rownames(closeness)")
+names(closeness) = c("label", "size", "closeness")
+```
+
+
+## Voliči Jiřího Drahoše
+```{r drahos network}
+
+drahos = NS1802[NS1802$PV.149B %in% 1,]
+ties = data.frame ( table ( drahos$topic1, drahos$topic2) )
+ties = ties[ties$Freq > 0,]
+names(ties)[3] = "weight"
+
+nodes = data.frame ( table ( c(drahos$topic1, drahos$topic2 )) )
+
+g = graph_from_data_frame(ties, directed = FALSE, vertices = nodes)
+g = simplify(g, edge.attr.comb = list("sum"))
+plot(g, vertex.size = log(V(g)$Freq)*4,edge.width = E(g)$weight)
+
+closeness = data.frame(closeness(g, weights = 1/E(g)$weight))
+closeness = cbind(rownames(closeness),closeness)
+
+closeness = merge(nodes, closeness, by.x = "Var1", by.y = "rownames(closeness)")
+names(closeness) = c("label", "size", "closeness")
+```
+
+
+
+# Validita
+Jak ověřit důležitost zapojení v síti? Nárh: pomocí regrese
+
+Závislá proměnná by bylo zapojení do diskuze pod internetovým zpravodajstvím na iDNES.cz během druhého kola prezidentské volby pro podpůrce Zemana a Drahoše (počet lajků/dislajků u komentářů pro Zemana/Drahoše). Články by byly tagovány k jednotlivým tématům ze sítě.
+
+Nezávislé proměnné by byla velikost uzlu, clossenes a míra zájmu politiku lidí, kteří dané téma zmiňovali. Otázka je, zda closeness hraje roli a jak velkou.
