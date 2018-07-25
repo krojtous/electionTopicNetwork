@@ -6,19 +6,33 @@ output:
   pdf_document:
     fig_width: 8
     toc: yes
+bibliography: ./../literature/literature.bib
 ---
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
-# Úvod
+# Introduction
 
-# Teorie
+# Theory
 
-#Data
+Postoj je v sociálně-psychologcké literatuře někdy konceptualizován jako síť emocí, úvah a konceptů [@lodge_rationalizing_2013].
 
-#Analyza
+@dalege_network_2017 ukazuje, že struktura sítě postojů vůči prezidentskému kandidátovi má vliv na chování voličů. Čím je síť hustší, tím má větší efekt a větší efekt mají také uzly, které mají centrálnější roli. K vytvoření sítě používá uzavřené otázky hodnotící charakter kandidáta (upřímný, inteligentní...). U každého kandidáta je tak stejný počet uzlů a jejich propojení je vytvořeno pomocí polychorických korelací.
+
+V této studii navazujeme na síťové pojetí postoje a posouváme ho jiným směrem. Zaprvé se od postojů ke kandidátovi posouváme k otázce konceptů/témat spojených s volbami (a tedy blíže k teorii agenda-setting). A zadruhé nepoužíváme uzavřené ale otevřené otázky, což může přinést větší možnost zahrnout více podstatných témat, ale přináší další metodologické obtíže. 
+
+
+# Data
+
+Vycházíme z povolební studie českých prezidentskývh voleb 2018 CVVM. Data ke stažení v datovém archovu ČSDA.
+
+Byla položena otázka:*Která témata byla pro Vás nejdůležitější v prezidentských volbách před druhým kolem voleb? Vyjmenujte je v pořadí, jak byla důležitá pro Vás osobně* S možností uvést dvě témata.
+
+Témata byla zakódována podle kódového klíče (je potřeba rozmyslet, že daný kódový klíč je vhodný).
+
+# Results
 
 ```{r libraries, message=FALSE, warning=FALSE, paged.print=FALSE}
 library(foreign)
@@ -76,18 +90,19 @@ names(closeness) = c("label", "size", "closeness")
 ```
 
 Vztah mezi dvěma tématy vzniká díky tomu, že jsou 
-** 1) pro danou osobu obě významná
-** 2) je mezi nimi v paměti asociační vazba
+1. pro danou osobu obě významná
+2. je mezi nimi v paměti asociační vazba
 
 ```{r closeness_plot}
+
 ggplot(closeness, aes(x=size, y=closeness)) +geom_text(label=closeness$label)+
-  stat_smooth(method = "lm", formula = y ~ I(log(x)), size = 1)+ theme_bw() + 
+  stat_smooth(method = "lm", formula = y ~ I((x^2)), size = 1, se = FALSE)+ theme_bw() + 
   theme(panel.border = element_blank(), panel.grid.major = element_blank(),                            panel.grid.minor = element_blank(), axis.line = element_line(colour = "black"))
 ```
 
 Takto agregovaná síť je problematická, protože agreguje dohromady všechny respondenty, kteří mohou mít ale síť postojů výrazně odlišnou. Je proto vhodné síť rozdělit mezi více skupin. V našem případě na voliče Zemana a Drahoše
 
-## Voliči Miloše Zemana
+## Zeman
 ```{r zeman network}
 
 zeman = NS1802[NS1802$PV.149B %in% 9,]
@@ -106,10 +121,14 @@ closeness = cbind(rownames(closeness),closeness)
 
 closeness = merge(nodes, closeness, by.x = "Var1", by.y = "rownames(closeness)")
 names(closeness) = c("label", "size", "closeness")
+
+ggplot(closeness, aes(x=size, y=closeness)) +geom_text(label=closeness$label)+
+  stat_smooth(method = "lm", formula = y ~ I((x^2)), size = 1, se = FALSE)+ theme_bw() + 
+  theme(panel.border = element_blank(), panel.grid.major = element_blank(),                            panel.grid.minor = element_blank(), axis.line = element_line(colour = "black"))
 ```
 
 
-## Voliči Jiřího Drahoše
+## Drahoš
 ```{r drahos network}
 
 drahos = NS1802[NS1802$PV.149B %in% 1,]
@@ -123,18 +142,34 @@ g = graph_from_data_frame(ties, directed = FALSE, vertices = nodes)
 g = simplify(g, edge.attr.comb = list("sum"))
 plot(g, vertex.size = log(V(g)$Freq)*4,edge.width = E(g)$weight)
 
+```
+
+V grafu je jeden izolát, který je zapotřebí odstranit.
+
+```{r drahos_closeness}
+
+g = delete_vertices(g, c("Příslušnost kandidáta ke straně"))
+
 closeness = data.frame(closeness(g, weights = 1/E(g)$weight))
 closeness = cbind(rownames(closeness),closeness)
 
 closeness = merge(nodes, closeness, by.x = "Var1", by.y = "rownames(closeness)")
 names(closeness) = c("label", "size", "closeness")
+
+ggplot(closeness, aes(x=size, y=closeness)) +geom_text(label=closeness$label)+
+  stat_smooth(method = "lm", formula = y ~ I((x^2)), size = 1, se = FALSE)+ theme_bw() + 
+  theme(panel.border = element_blank(), panel.grid.major = element_blank(),                            panel.grid.minor = element_blank(), axis.line = element_line(colour = "black"))
 ```
 
 
 
-# Validita
-Jak ověřit důležitost zapojení v síti? Nárh: pomocí regrese
+# Validity
+Jak ověřit důležitost zapojení v síti? **Návrh: pomocí regrese**
 
-Závislá proměnná by bylo zapojení do diskuze pod internetovým zpravodajstvím na iDNES.cz během druhého kola prezidentské volby pro podpůrce Zemana a Drahoše (počet lajků/dislajků u komentářů pro Zemana/Drahoše). Články by byly tagovány k jednotlivým tématům ze sítě.
+Hledá se vhodná závislá proměnná.
+
+Vhodné by mohlo být například zapojení do diskuze pod internetovým zpravodajstvím na iDNES.cz během druhého kola prezidentské volby pro podpůrce Zemana a Drahoše (počet lajků/dislajků u komentářů pro Zemana/Drahoše). Články by byly tagovány k jednotlivým tématům ze sítě.
 
 Nezávislé proměnné by byla velikost uzlu, clossenes a míra zájmu politiku lidí, kteří dané téma zmiňovali. Otázka je, zda closeness hraje roli a jak velkou.
+
+# References

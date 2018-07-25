@@ -1,1 +1,8 @@
-\contentsline {subsection}{R Markdown}{1}{section*.2}
+\contentsline {section}{Introduction}{1}{section*.2}
+\contentsline {section}{Theory}{1}{section*.3}
+\contentsline {section}{Data}{1}{section*.4}
+\contentsline {section}{Results}{2}{section*.5}
+\contentsline {subsection}{Zeman}{4}{section*.6}
+\contentsline {subsection}{Draho\IeC {\v s}}{6}{section*.7}
+\contentsline {section}{Validity}{8}{section*.8}
+\contentsline {section}{References}{8}{section*.9}
