@@ -100,6 +100,30 @@ ggplot(closeness, aes(x=size, y=closeness)) +geom_text(label=closeness$label)+
   theme(panel.border = element_blank(), panel.grid.major = element_blank(),                            panel.grid.minor = element_blank(), axis.line = element_line(colour = "black"))
 ```
 
+Otázka je, jestli lidé, kteří jsou více zapojeni v síti k volbám spíše nepřijdou?
+```{r turnout_closeness_corr}
+
+table(NS1802$PV.153A)
+NS1802$turnout = mapvalues(NS1802$PV.153A, c(0,1,2,8,9),c(2,1,2,NA,2))
+table(NS1802$turnout)
+
+
+
+names(closeness) =c("label","size", "closeness")
+NS1802b = merge(NS1802,closeness, by.x="topic1", by.y="label", all.x = T)
+
+names(closeness) =c("label","size2", "closeness2")
+NS1802b = merge(NS1802b,closeness, by.x="topic2", by.y="label", all.x = T)
+
+NS1802b$closeness_avg = (NS1802b$closeness/NS1802b$size + NS1802b$closeness2/NS1802b$size2)/2
+cor(NS1802b$closeness_avg)
+library(ltm)
+
+biserial.cor(NS1802b$closeness_avg, NS1802$turnout, use = c("complete.obs"), level = 1)
+```
+To je očividně slepá ulička -> korelace je v podstatě nulová
+
+
 Takto agregovaná síť je problematická, protože agreguje dohromady všechny respondenty, kteří mohou mít ale síť postojů výrazně odlišnou. Je proto vhodné síť rozdělit mezi více skupin. V našem případě na voliče Zemana a Drahoše
 
 ## Zeman
@@ -171,5 +195,10 @@ Hledá se vhodná závislá proměnná.
 Vhodné by mohlo být například zapojení do diskuze pod internetovým zpravodajstvím na iDNES.cz během druhého kola prezidentské volby pro podpůrce Zemana a Drahoše (počet lajků/dislajků u komentářů pro Zemana/Drahoše). Články by byly tagovány k jednotlivým tématům ze sítě.
 
 Nezávislé proměnné by byla velikost uzlu, clossenes a míra zájmu politiku lidí, kteří dané téma zmiňovali. Otázka je, zda closeness hraje roli a jak velkou.
+
+## Pauly návrh:
+Otázka, jak se sítě liší napříč evropu, když roztřídíme strany na populistické a nepopulistické.
+De facto posun od metodologie k věcné analýze.
+
 
 # References
